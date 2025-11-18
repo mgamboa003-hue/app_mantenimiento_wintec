@@ -84,7 +84,7 @@ def aplicar_filtros(df, maquina=None, responsable=None, fecha_desde=None, fecha_
 
 
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 app.secret_key = 'wintec_secret_key'
 load_dotenv()
 
