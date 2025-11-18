@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light">
+
+  <div class="container mt-5">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>{{ title }}</h2>
+      <a href="/logout" class="btn btn-danger">Cerrar sesión</a>
+    </div>
+
+    <!-- Botón abrir modal -->
+    <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#modalAgregar">
+      Agregar nuevo mantenimiento
+    </button>
+
+    <!-- TABLA MANUAL -->
+    <div class="table-responsive mt-4">
+      <table class="table table-bordered table-striped">
+        <thead>
+          <tr>
+            <th>Máquina</th>
+            <th>Fecha</th>
+            <th>Descripción</th>
+            <th>Responsable</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in mantenimientos %}
+          <tr>
+            <td>{{ m['Máquina'] }}</td>
+            <td>{{ m['Fecha'] }}</td>
+            <td>{{ m['Descripción'] }}</td>
+            <td>{{ m['Responsable'] }}</td>
+            <td class="text-center">
+
+              <!-- Botón Editar -->
+              <a href="{{ url_for('editar_mantenimiento', indice=loop.index0) }}"
+                 class="btn btn-sm btn-warning">
+                Editar
+              </a>
+
+              <!-- Botón Eliminar -->
+              <form action="{{ url_for('eliminar_mantenimiento', indice=loop.index0) }}"
+                    method="post" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-danger"
+                        onclick="return confirm('¿Seguro que deseas eliminar este registro?');">
+                  Eliminar
+                </button>
+              </form>
+
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- MODAL AGREGAR -->
+    <div class="modal fade" id="modalAgregar" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <form action="/agregar" method="post">
+          <div class="modal-content">
+
+            <div class="modal-header">
+              <h5 class="modal-title" id="modalLabel">Nuevo Mantenimiento</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+
+            <div class="modal-body">
+              <div class="form-group">
+                <label>Máquina</label>
+                <input type="text" name="maquina" class="form-control" required>
+              </div>
+
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" class="form-control" required>
+              </div>
+
+              <div class="form-group">
+                <label>Responsable</label>
+                <input type="text" name="responsable" class="form-control" required>
+              </div>
+
+              <div class="form-group">
+                <label>Descripción</label>
+                <textarea name="descripcion" class="form-control" required></textarea>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+              <button type="submit" class="btn btn-success">Agregar</button>
+            </div>
+
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
+

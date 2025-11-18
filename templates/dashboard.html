@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+    <!-- NAVBAR GLOBAL -->
+  <nav class="navbar navbar-expand-lg navbar-dark" style="background-color:#1F3B8F;">
+    <a class="navbar-brand d-flex align-items-center ml-3" href="{{ url_for('home') }}">
+      <img src="{{ url_for('static', filename='logo_wintec.png') }}"
+           alt="Wintec"
+           style="height:32px; margin-right:10px;">
+      <span class="font-weight-bold">Mantenimiento Wintec</span>
+    </a>
+
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#mainNav"
+            aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav ml-auto mr-3">
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('home') }}">Inicio</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('dashboard') }}">Dashboard</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('preventivos') }}">Preventivos</a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('analisis') }}">Análisis</a>
+        </li>
+
+        {% if rol == 'admin' %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('usuarios') }}">Usuarios</a>
+        </li>
+        {% endif %}
+
+        <li class="nav-item">
+          <a class="nav-link text-danger" href="{{ url_for('logout') }}">Cerrar sesión</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+
+  <div class="container mt-5">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2>{{ title }}</h2>
+        <small class="text-muted">
+          Usuario: {{ usuario }} | Rol: {{ rol }}
+        </small>
+      </div>
+      <div>
+       <div class="d-flex mb-3">
+    <a href="{{ url_for('informe_pdf') }}" class="btn btn-success mr-2">Descargar informe PDF</a>
+    <a href="{{ url_for('exportar_datos') }}" class="btn btn-outline-success mr-2">Exportar todo (CSV)</a>
+    <a href="{{ url_for('maquinas') }}" class="btn btn-warning mr-2">Ver por máquina</a>
+    <a href="{{ url_for('analisis') }}" class="btn btn-primary">Ver análisis Pareto</a>
+</div>
+      </div>
+    </div>
+
+    <!-- Filtros avanzados -->
+    <div class="card mb-4">
+      <div class="card-header">
+        Filtros de análisis / exportación
+      </div>
+      <div class="card-body">
+        <form method="get" action="{{ url_for('dashboard') }}">
+          <div class="form-row">
+
+            <div class="form-group col-md-3">
+              <label for="f_maquina">Máquina</label>
+              <input
+                type="text"
+                class="form-control"
+                id="f_maquina"
+                name="maquina"
+                placeholder="Ej: SPACER"
+                value="{{ request.args.get('maquina', '') }}"
+              >
+            </div>
+
+            <div class="form-group col-md-3">
+              <label for="f_responsable">Responsable</label>
+              <input
+                type="text"
+                class="form-control"
+                id="f_responsable"
+                name="responsable"
+                placeholder="Ej: Mauricio"
+                value="{{ request.args.get('responsable', '') }}"
+              >
+            </div>
+
+            <div class="form-group col-md-3">
+              <label for="f_desde">Fecha desde</label>
+              <input
+                type="date"
+                class="form-control"
+                id="f_desde"
+                name="fecha_desde"
+                value="{{ request.args.get('fecha_desde', '') }}"
+              >
+            </div>
+
+            <div class="form-group col-md-3">
+              <label for="f_hasta">Fecha hasta</label>
+              <input
+                type="date"
+                class="form-control"
+                id="f_hasta"
+                name="fecha_hasta"
+                value="{{ request.args.get('fecha_hasta', '') }}"
+              >
+            </div>
+
+          </div>
+
+          <div class="d-flex flex-wrap mt-2">
+            <button type="submit" class="btn btn-primary mr-2 mb-2">
+              Aplicar filtros
+            </button>
+
+            <!-- Exportar usando los mismos filtros -->
+            <button
+              type="submit"
+              class="btn btn-outline-success mr-2 mb-2"
+              formaction="{{ url_for('exportar_datos') }}"
+            >
+              Exportar datos filtrados (CSV)
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-outline-dark mr-2 mb-2"
+              formaction="{{ url_for('informe_pdf') }}"
+            >
+              Descargar PDF filtrado
+            </button>
+            
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary mb-2">
+              Limpiar filtros
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tarjetas KPI fila 1 -->
+    <div class="row mb-4">
+      <div class="col-md-3 mb-3">
+        <div class="card text-white bg-info h-100">
+          <div class="card-body">
+            <h5 class="card-title">Mantenimientos totales</h5>
+            <h2 class="card-text">{{ total_mantenimientos }}</h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card text-white bg-secondary h-100">
+          <div class="card-body">
+            <h5 class="card-title">Máquinas registradas</h5>
+            <h2 class="card-text">{{ total_maquinas }}</h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card text-white bg-warning h-100">
+          <div class="card-body">
+            <h5 class="card-title">Fallas mes actual</h5>
+            <h2 class="card-text">{{ fallas_mes_actual }}</h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success h-100">
+          <div class="card-body">
+            <h5 class="card-title">Disponibilidad global</h5>
+            <h2 class="card-text">
+              {% if disponibilidad_global is not none %}
+                {{ disponibilidad_global }}%
+              {% else %}
+                N/A
+              {% endif %}
+            </h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tarjetas KPI fila 2 -->
+    <div class="row mb-4">
+      <div class="col-md-6 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">MTBF global (días entre fallas)</h5>
+            <h2 class="card-text">
+              {% if mtbf_global is not none %}
+                {{ mtbf_global }} días
+              {% else %}
+                N/A
+              {% endif %}
+            </h2>
+            <p class="mb-0 text-muted">Promedio considerando todas las máquinas.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">MTTR global (horas)</h5>
+            <h2 class="card-text">
+              {% if mttr_global is not none %}
+                {{ mttr_global }} h
+              {% else %}
+                N/A
+              {% endif %}
+            </h2>
+            <p class="mb-0 text-muted">Promedio de duración de las intervenciones.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico fallas por mes -->
+    <div class="card mb-4">
+      <div class="card-header">
+        Fallas registradas por mes
+      </div>
+      <div class="card-body">
+        {% if labels_mes %}
+          <canvas id="mesChart"></canvas>
+        {% else %}
+          <p class="text-muted mb-0">
+            No hay datos suficientes para graficar.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Script gráfico -->
+  <script>
+    const labelsMes = {{ labels_mes | tojson }};
+    const valuesMes = {{ values_mes | tojson }};
+
+    if (labelsMes.length > 0) {
+      const ctx = document.getElementById('mesChart').getContext('2d');
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labelsMes,
+          datasets: [{
+            label: 'Fallas por mes',
+            data: valuesMes,
+            fill: false,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>

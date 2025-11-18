@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+
+  <div class="container mt-5">
+
+    <!-- Encabezado -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>{{ title }}</h2>
+      <div>
+        <a href="{{ url_for('maquinas') }}" class="btn btn-secondary mr-2">Volver a lista de máquinas</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-info mr-2">Dashboard</a>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary mr-2">Volver a mantenimientos</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar sesión</a>
+      </div>
+    </div>
+
+    <!-- KPIs de la máquina -->
+    <div class="row mb-4">
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">N° de fallas</h6>
+            <h2 class="card-text">{{ fallas }}</h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">MTBF (días)</h6>
+            <h2 class="card-text">
+              {% if mtbf is not none %}
+                {{ mtbf }}
+              {% else %}
+                N/A
+              {% endif %}
+            </h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">MTTR (horas)</h6>
+            <h2 class="card-text">
+              {% if mttr is not none %}
+                {{ mttr }}
+              {% else %}
+                N/A
+              {% endif %}
+            </h2>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-3 mb-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-title">Disponibilidad (%)</h6>
+            <h2 class="card-text">
+              {% if disponibilidad is not none %}
+                {{ disponibilidad }}%
+              {% else %}
+                N/A
+              {% endif %}
+            </h2>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rango de fechas -->
+    <div class="mb-3">
+      <p class="mb-1">
+        <strong>Primer registro:</strong>
+        {% if fecha_primera %} {{ fecha_primera }} {% else %} N/A {% endif %}
+      </p>
+      <p class="mb-3">
+        <strong>Último registro:</strong>
+        {% if fecha_ultima %} {{ fecha_ultima }} {% else %} N/A {% endif %}
+      </p>
+    </div>
+
+    <!-- Gráfico de fallas por fecha -->
+    <div class="card mb-4">
+      <div class="card-header">
+        Fallas en el tiempo
+      </div>
+      <div class="card-body">
+        <canvas id="histChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Historial de mantenimientos -->
+    <div class="card">
+      <div class="card-header">
+        Historial de mantenimientos
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive mb-0">
+          <table class="table table-striped table-bordered mb-0">
+            <thead class="thead-light">
+              <tr>
+                <th>Fecha</th>
+                <th>Descripción</th>
+                <th>Responsable</th>
+                <th>Duración (horas)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in historial %}
+              <tr>
+                <td>{{ h['Fecha'] }}</td>
+                <td>{{ h['Descripción'] }}</td>
+                <td>{{ h['Responsable'] }}</td>
+                <td>
+                  {% if h['Duración_horas'] %}
+                    {{ h['Duración_horas'] }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Script gráfico -->
+  <script>
+    const labels = {{ labels | tojson }};
+    const values = {{ values | tojson }};
+
+    const ctx = document.getElementById('histChart').getContext('2d');
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'N° de fallas',
+          data: values,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Cantidad de fallas'
+            }
+          }
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>

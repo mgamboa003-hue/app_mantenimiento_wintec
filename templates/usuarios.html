@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title }}</title>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light">
+
+<div class="container mt-5">
+
+  <!-- Encabezado -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>{{ title }}</h2>
+      <small class="text-muted">
+        Usuario: {{ usuario }} | Rol: {{ rol }}
+      </small>
+    </div>
+    <div>
+      <a href="{{ url_for('home') }}" class="btn btn-secondary mr-2">Volver</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-danger">Cerrar sesión</a>
+    </div>
+  </div>
+
+  <!-- Botón nuevo usuario -->
+  <button type="button" class="btn btn-primary mb-3" data-toggle="modal" data-target="#modalNuevoUsuario">
+    Nuevo usuario
+  </button>
+
+  <!-- Tabla de usuarios -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped">
+      <thead class="thead-light">
+        <tr>
+          <th>Usuario</th>
+          <th>Rol</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in usuarios %}
+        <tr>
+          <td>{{ u['usuario'] }}</td>
+          <td>{{ u['rol'] }}</td>
+          <td>
+            {% if u['usuario'] != 'admin' %}
+              <form action="{{ url_for('eliminar_usuario', usuario_nombre=u['usuario']) }}"
+                    method="post"
+                    style="display:inline;">
+                <button type="submit"
+                        class="btn btn-sm btn-danger"
+                        onclick="return confirm('¿Eliminar usuario {{ u['usuario'] }}?')">
+                  Eliminar
+                </button>
+              </form>
+            {% else %}
+              <span class="text-muted">No se puede eliminar</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Modal nuevo usuario -->
+<div class="modal fade" id="modalNuevoUsuario" tabindex="-1" role="dialog" aria-labelledby="modalNuevoUsuarioLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <form action="{{ url_for('crear_usuario') }}" method="post">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalNuevoUsuarioLabel">Nuevo usuario</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Usuario</label>
+            <input type="text" name="usuario" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" name="contrasena" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label>Rol</label>
+            <select name="rol" class="form-control" required>
+              <option value="admin">Admin</option>
+              <option value="tecnico">Técnico</option>
+              <option value="visor">Solo ver</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Crear usuario</button>
+        </div>
+
+      </div>
+    </form>
+  </div>
+</div>
+
+</body>
+</html>
