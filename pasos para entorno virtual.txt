@@ -1,0 +1,31 @@
+pasos para abirir entorno virtual
+
+1-. cd C:\Users\SOLDADORA\Desktop\app_mantenimiento_wintec
+2-. Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+3-. S
+4-. python -m venv venv
+5-. .\venv\Scripts\activate
+6-.  .\venv\Scripts\activate
+python app.py
+http://127.0.0.1:5000
+
+cd C:\Users\nicol\Desktop\app_mantenimiento_wintec
+
+
+Dime, ¿cuál hacemos AHORA?
+
+A) Exportación avanzada
+
+B) Repetitividad mejorado
+
+C) MTBF/MTTR por mes
+
+D) Productividad de técnicos
+
+E) Informe PDF pro
+
+Opción A — PDF filtrado + PDF por máquina
+Opción B — Gestión avanzada de usuarios (CRUD real)
+Opción C — Predicción básica de fallas (estadísticas inteligentes)
+Opción D — Reportes automáticos por correo
+Opción E — Calendario profesional de preventivos

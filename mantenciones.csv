@@ -1,0 +1,11 @@
+Máquina,Fecha,Descripción,Responsable,Hora_inicio,Hora_fin,Duración_horas,Tipo,Frecuencia_dias,Próximo_mantenimiento
+Spacer,2025-11-19,Cambio de cuchillas,Mauricio,15:16,18:19,2.3,,,
+selladora,2025-11-14,cambio de cable del sensor de la ventosa ,Mauricio,,,,,,
+Lavadora,2025-11-12,"Camabio de rodillos y ajuste de ellos mismo, tambien se lubrican rodamientos ",Mauricio,,,9.0,,,
+prensa,2025-11-14,cambio de rodillos,Mauricio,,,0.1,Preventivo,30.0,2025-12-14
+selladora,2025-11-10,sensor,Mauricio,,,0.1,Preventivo,15.0,2025-11-25
+selladora,2025-11-18,limpieza,Mauricio,,,0.1,Preventivo,2.0,2025-11-20
+selladora,2025-11-16,limpieza,admin,,,0.1,Preventivo,2.0,2025-11-18
+selladora,2025-11-17,limpieza,admin,,,0.1,Preventivo,2.0,2025-11-19
+selladora,2025-11-17,limpieza,admin,,,0.1,Preventivo,2.0,2025-11-19
+selladora,2025-11-18,limpieza,admin,,,0.1,Preventivo,2.0,2025-11-20
