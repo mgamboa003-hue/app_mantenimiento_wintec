@@ -1,34 +1,19 @@
-
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, make_response
 import pandas as pd
 import os
 from flask_mail import Mail, Message
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm
-from datetime import datetime
-import io
+from reportlab.lib.units import cm, mm
 from datetime import datetime, timedelta
+import io
 import csv
-from flask import request
-from flask import make_response  # Asegúrate de tener esto en tus imports arriba
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, make_response
-from flask import (
-    Flask, render_template, request, redirect,
-    url_for, flash, send_file, session, make_response
-)
 from reportlab.lib import colors
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics import renderPDF
 from io import BytesIO
-from reportlab.lib.units import cm, mm
-from reportlab.platypus import Table, TableStyle
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import cm, mm
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib.utils import ImageReader
 
@@ -36,9 +21,53 @@ import matplotlib
 matplotlib.use('Agg')  # para que no necesite pantalla
 import matplotlib.pyplot as plt
 
+# ===================== FUNCIONES DE NORMALIZACIÓN =====================
+
+def normalizar_texto(texto):
+    """Deja el texto con primera letra mayúscula y resto minúscula."""
+    if texto is None:
+        return None
+    texto = str(texto).strip()
+    if texto == "":
+        return ""
+    return texto.lower().capitalize()
 
 
-from datetime import datetime  # ya lo tienes arriba, no importa si se repite
+def normalizar_usuario(nombre):
+    """Normaliza el nombre de usuario para evitar problemas de may/min."""
+    if not nombre:
+        return ""
+    return str(nombre).strip().lower()
+
+
+def normalizar_rol(rol):
+    """Normaliza el rol (admin, tecnico, etc.) a minúsculas."""
+    if not rol:
+        return ""
+    return str(rol).strip().lower()
+
+
+# ===================== MANTENCIONES =====================
+
+def cargar_mantenciones():
+    """Lee mantenciones.csv y normaliza Máquinas y Responsables."""
+    try:
+        df = pd.read_csv("mantenciones.csv")
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+    for col in ['Máquina', 'Responsable']:
+        if col in df.columns:
+            df[col] = (
+                df[col]
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                .str.capitalize()
+            )
+
+    return df
+
 
 def aplicar_filtros(df, maquina=None, responsable=None, fecha_desde=None, fecha_hasta=None):
     """
@@ -48,6 +77,17 @@ def aplicar_filtros(df, maquina=None, responsable=None, fecha_desde=None, fecha_
     if df.empty:
         return df
 
+    # Normalizar valores de filtros
+    if maquina and maquina not in ["Todas", "todos"]:
+        maquina = normalizar_texto(maquina)
+    else:
+        maquina = "Todas"
+
+    if responsable and responsable not in ["Todos", "todos"]:
+        responsable = normalizar_texto(responsable)
+    else:
+        responsable = "Todos"
+
     # Asegurar tipo fecha
     if 'Fecha' in df.columns:
         df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
@@ -56,14 +96,12 @@ def aplicar_filtros(df, maquina=None, responsable=None, fecha_desde=None, fecha_
     df_filtrado = df.copy()
 
     # Filtro por máquina
-    if maquina and maquina.strip() and maquina != "Todas":
-        if 'Máquina' in df_filtrado.columns:
-            df_filtrado = df_filtrado[df_filtrado['Máquina'] == maquina]
+    if maquina != "Todas" and 'Máquina' in df_filtrado.columns:
+        df_filtrado = df_filtrado[df_filtrado['Máquina'] == maquina]
 
     # Filtro por responsable
-    if responsable and responsable.strip() and responsable != "Todos":
-        if 'Responsable' in df_filtrado.columns:
-            df_filtrado = df_filtrado[df_filtrado['Responsable'] == responsable]
+    if responsable != "Todos" and 'Responsable' in df_filtrado.columns:
+        df_filtrado = df_filtrado[df_filtrado['Responsable'] == responsable]
 
     # Filtro por fechas
     if fecha_desde:
@@ -83,14 +121,9 @@ def aplicar_filtros(df, maquina=None, responsable=None, fecha_desde=None, fecha_
     return df_filtrado
 
 
+# ===================== FLASK APP / MAIL =====================
 
-app = Flask(
-    __name__,
-    template_folder='templates',
-    static_folder='static',
-    static_url_path='/static'
-)
-
+app = Flask(__name__)
 app.secret_key = 'wintec_secret_key'
 load_dotenv()
 
@@ -104,16 +137,23 @@ mail = Mail(app)
 
 USERS_FILE = "usuarios.csv"
 
+
+# ===================== USUARIOS =====================
+
 def cargar_usuarios():
-    """Lee usuarios desde usuarios.csv y devuelve una lista de dicts."""
+    """Lee usuarios desde usuarios.csv, normalizando usuario y rol."""
     usuarios = []
     if not os.path.exists(USERS_FILE):
         return usuarios
+
     with open(USERS_FILE, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
+            row['usuario'] = normalizar_usuario(row.get('usuario', ''))
+            row['rol'] = normalizar_rol(row.get('rol', ''))
             usuarios.append(row)
     return usuarios
+
 
 def guardar_usuarios(lista_usuarios):
     """Guarda la lista completa de usuarios en usuarios.csv."""
@@ -124,12 +164,14 @@ def guardar_usuarios(lista_usuarios):
         writer.writerows(lista_usuarios)
 
 
+# ===================== RUTAS PRINCIPALES =====================
+
 @app.route('/')
 def home():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    # Usuario y rol desde la sesión (tal como los guarda login)
+    # Usuario y rol desde la sesión
     usuario = session.get("usuario", "admin")
     rol = session.get("rol", "admin")
     puede_editar = rol in ['admin', 'tecnico']
@@ -140,11 +182,8 @@ def home():
     fecha_desde = request.args.get("fecha_desde", "")
     fecha_hasta = request.args.get("fecha_hasta", "")
 
-    # Cargar CSV
-    try:
-        df = pd.read_csv("mantenciones.csv")
-    except FileNotFoundError:
-        df = pd.DataFrame()
+    # Cargar CSV normalizado
+    df = cargar_mantenciones()
 
     # Aseguramos que existan las columnas opcionales
     for col in ['Hora_inicio', 'Hora_fin', 'Duración_horas', 'Tipo', 'Frecuencia_dias', 'Próximo_mantenimiento']:
@@ -155,7 +194,6 @@ def home():
     hoy = datetime.now().date()
 
     def dias_restantes_row(row):
-        # Solo aplica a preventivos con próximo mantenimiento definido
         if row.get('Tipo') != 'Preventivo' or pd.isna(row.get('Próximo_mantenimiento')) or row.get('Próximo_mantenimiento') in [None, ""]:
             return None
         try:
@@ -195,7 +233,6 @@ def home():
     df_filtrado = aplicar_filtros(df, maquina_filtro, responsable_filtro, fecha_desde, fecha_hasta)
 
     if not df_filtrado.empty:
-        # Aseguramos tipo fecha para mostrar
         df_filtrado['Fecha'] = pd.to_datetime(df_filtrado['Fecha'], errors='coerce')
         df_tabla = df_filtrado[['Máquina', 'Fecha', 'Descripción', 'Responsable', 'Duración_horas', 'Estado_prev']].copy()
         df_tabla['Fecha'] = df_tabla['Fecha'].dt.strftime('%d-%m-%Y')
@@ -238,14 +275,13 @@ def home():
     )
 
 
-
-
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
+        username_raw = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
+
+        username = normalizar_usuario(username_raw)
 
         usuarios = cargar_usuarios()
         usuario_encontrado = None
@@ -265,7 +301,6 @@ def login():
         else:
             flash("Usuario o contraseña incorrectos.", "danger")
 
-    # GET o login fallido
     return render_template('login.html', title="Iniciar sesión")
 
 
@@ -274,40 +309,41 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+
+# ===================== CRUD MANTENCIONES =====================
+
 @app.route('/agregar', methods=['POST'])
 def agregar_mantenimiento():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    # Control de permisos por rol
     rol = session.get("rol", "admin")
     if rol not in ['admin', 'tecnico']:
         flash("No tienes permisos para agregar mantenimientos.", "warning")
         return redirect(url_for('home'))
 
-    # Datos de tiempo (opcionales)
     hora_inicio = request.form.get('hora_inicio', '').strip()
     hora_fin = request.form.get('hora_fin', '').strip()
     duracion = request.form.get('duracion', '').strip()
 
-    # Tipo y frecuencia de mantenimiento
     tipo = request.form.get('tipo', 'Correctivo')
     freq_str = request.form.get('frecuencia_dias', '').strip()
     frecuencia = int(freq_str) if freq_str.isdigit() and int(freq_str) > 0 else None
 
-    # Calcular próximo mantenimiento solo si es preventivo y tiene frecuencia válida
     proximo = None
     if tipo == 'Preventivo' and frecuencia:
         fecha_base = datetime.strptime(request.form['fecha'], "%Y-%m-%d")
         proximo_dt = fecha_base + timedelta(days=frecuencia)
         proximo = proximo_dt.strftime("%Y-%m-%d")
 
-    # Registro nuevo
+    maquina_normalizada = normalizar_texto(request.form['maquina'])
+    responsable_normalizado = normalizar_texto(request.form['responsable'])
+
     nuevo = {
-        'Máquina': request.form['maquina'],
+        'Máquina': maquina_normalizada,
         'Fecha': request.form['fecha'],
         'Descripción': request.form['descripcion'],
-        'Responsable': request.form['responsable'],
+        'Responsable': responsable_normalizado,
         'Hora_inicio': hora_inicio if hora_inicio != '' else None,
         'Hora_fin': hora_fin if hora_fin != '' else None,
         'Duración_horas': duracion if duracion != '' else None,
@@ -316,20 +352,16 @@ def agregar_mantenimiento():
         'Próximo_mantenimiento': proximo
     }
 
-    # Leer CSV y asegurar columnas
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
     for col in ['Hora_inicio', 'Hora_fin', 'Duración_horas', 'Tipo', 'Frecuencia_dias', 'Próximo_mantenimiento']:
         if col not in df.columns:
             df[col] = None
 
-    # Agregar fila y guardar
     df = pd.concat([df, pd.DataFrame([nuevo])], ignore_index=True)
     df.to_csv("mantenciones.csv", index=False)
 
     flash("Mantenimiento agregado exitosamente", "success")
     return redirect(url_for('home'))
-
-
 
 
 @app.route('/eliminar/<int:indice>', methods=['POST'])
@@ -342,7 +374,7 @@ def eliminar_mantenimiento(indice):
         flash("No tienes permisos para eliminar mantenimientos.", "warning")
         return redirect(url_for('home'))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
     if indice < 0 or indice >= len(df):
         flash("Registro no encontrado", "danger")
@@ -364,7 +396,7 @@ def editar_mantenimiento(indice):
         flash("No tienes permisos para editar mantenimientos.", "warning")
         return redirect(url_for('home'))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
     if indice < 0 or indice >= len(df):
         flash("Registro no encontrado", "danger")
@@ -374,10 +406,10 @@ def editar_mantenimiento(indice):
         if col not in df.columns:
             df[col] = None
 
-    df.loc[indice, 'Máquina'] = request.form['maquina']
+    df.loc[indice, 'Máquina'] = normalizar_texto(request.form['maquina'])
     df.loc[indice, 'Fecha'] = request.form['fecha']
     df.loc[indice, 'Descripción'] = request.form['descripcion']
-    df.loc[indice, 'Responsable'] = request.form['responsable']
+    df.loc[indice, 'Responsable'] = normalizar_texto(request.form['responsable'])
 
     hora_inicio = request.form.get('hora_inicio', '').strip()
     hora_fin = request.form.get('hora_fin', '').strip()
@@ -398,6 +430,9 @@ def editar_mantenimiento(indice):
     flash("Mantenimiento actualizado correctamente", "success")
     return redirect(url_for('home'))
 
+
+# ===================== DASHBOARD =====================
+
 @app.route('/dashboard')
 def dashboard():
     if not session.get("logged_in"):
@@ -406,14 +441,8 @@ def dashboard():
     usuario = session.get("usuario", "admin")
     rol = session.get("rol", "admin")
 
-    # Leer datos
-    try:
-        df = pd.read_csv("mantenciones.csv")
-    except FileNotFoundError:
-        flash("No se encontró el archivo de mantenciones.", "danger")
-        df = pd.DataFrame()
+    df = cargar_mantenciones()
 
-    # Si no hay datos o no hay columna Fecha
     if df.empty or 'Fecha' not in df.columns:
         return render_template(
             'dashboard.html',
@@ -430,7 +459,6 @@ def dashboard():
             values_mes=[]
         )
 
-    # Asegurar tipo datetime
     df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     df = df.dropna(subset=['Fecha'])
 
@@ -450,7 +478,6 @@ def dashboard():
             values_mes=[]
         )
 
-    # ================== KPIs ==================
     total_mantenimientos = len(df)
     total_maquinas = df['Máquina'].nunique() if 'Máquina' in df.columns else 0
 
@@ -459,7 +486,6 @@ def dashboard():
     df['Periodo'] = df['Fecha'].dt.to_period('M')
     fallas_mes_actual = df[df['Periodo'] == periodo_actual].shape[0]
 
-    # MTBF global
     mtbf_global = None
     if 'Máquina' in df.columns:
         df_mtbf = df.sort_values(by=['Máquina', 'Fecha'])
@@ -467,14 +493,12 @@ def dashboard():
         if df_mtbf['DifDias'].notna().any():
             mtbf_global = round(df_mtbf['DifDias'].dropna().mean(), 1)
 
-    # MTTR global
     mttr_global = None
     if 'Duración_horas' in df.columns:
         df['Duración_horas'] = pd.to_numeric(df['Duración_horas'], errors='coerce')
         if df['Duración_horas'].notna().any():
             mttr_global = round(df['Duración_horas'].dropna().mean(), 1)
 
-    # Disponibilidad global
     disponibilidad_global = None
     if all(col in df.columns for col in ['Hora_inicio', 'Hora_fin']):
         df_horas = df.copy()
@@ -510,7 +534,6 @@ def dashboard():
                     (horas_totales - downtime_total) / horas_totales * 100, 2
                 )
 
-    # ================== Gráfico: fallas por mes ==================
     fallas_por_mes = (
         df
         .groupby(df['Fecha'].dt.to_period('M'))
@@ -520,7 +543,6 @@ def dashboard():
     labels_mes = [str(p) for p in fallas_por_mes.index]
     values_mes = fallas_por_mes.tolist()
 
-    # Render final
     return render_template(
         'dashboard.html',
         title="Dashboard de mantenimiento",
@@ -537,44 +559,38 @@ def dashboard():
     )
 
 
+# ===================== EXPORTAR DATOS =====================
 
 @app.route('/exportar_datos')
 def exportar_datos():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    # Leer datos
-    try:
-        df = pd.read_csv("mantenciones.csv")
-    except FileNotFoundError:
-        flash("No se encontró el archivo de mantenciones.", "danger")
-        return redirect(url_for('dashboard'))
+    df = cargar_mantenciones()
 
     if df.empty or 'Fecha' not in df.columns:
         flash("No hay datos para exportar.", "warning")
         return redirect(url_for('dashboard'))
 
-    # ---------- Filtros recibidos por GET ----------
     maquina = request.args.get('maquina', '').strip()
     responsable = request.args.get('responsable', '').strip()
     fecha_desde = request.args.get('fecha_desde', '').strip()
     fecha_hasta = request.args.get('fecha_hasta', '').strip()
 
-    # Aseguramos columna Fecha como datetime
+    if maquina:
+        maquina = normalizar_texto(maquina)
+    if responsable:
+        responsable = normalizar_texto(responsable)
+
     df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     df = df.dropna(subset=['Fecha'])
 
-    # Filtro por máquina
-    if maquina:
-        if 'Máquina' in df.columns:
-            df = df[df['Máquina'] == maquina]
+    if maquina and 'Máquina' in df.columns:
+        df = df[df['Máquina'] == maquina]
 
-    # Filtro por responsable
-    if responsable:
-        if 'Responsable' in df.columns:
-            df = df[df['Responsable'] == responsable]
+    if responsable and 'Responsable' in df.columns:
+        df = df[df['Responsable'] == responsable]
 
-    # Filtro por rango de fechas
     if fecha_desde:
         try:
             f_desde = pd.to_datetime(fecha_desde)
@@ -589,22 +605,17 @@ def exportar_datos():
         except Exception:
             pass
 
-    # Si después de filtrar no queda nada
     if df.empty:
         flash("No hay datos que coincidan con los filtros para exportar.", "warning")
         return redirect(url_for('dashboard'))
 
-    # Orden opcional
     df = df.sort_values(by='Fecha')
 
-    # ---------- Generar CSV en memoria ----------
     from io import StringIO
     output = StringIO()
-    # Usamos ; para que se vea bonito en Excel en español (opcional)
     df.to_csv(output, index=False, sep=';', encoding='utf-8-sig')
     csv_data = output.getvalue()
 
-    # Respuesta HTTP con archivo
     resp = make_response(csv_data)
     resp.headers["Content-Disposition"] = "attachment; filename=mantenimientos_filtrados.csv"
     resp.headers["Content-Type"] = "text/csv; charset=utf-8"
@@ -612,33 +623,39 @@ def exportar_datos():
     return resp
 
 
-
+# ===================== ANÁLISIS / PARETO =====================
 
 @app.route('/analisis')
 def analisis():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
-    
-    df = pd.read_csv("mantenciones.csv")
 
-    # Eliminar filas sin máquina (por si hay NaN)
+    df = cargar_mantenciones()
+
+    if df.empty or 'Máquina' not in df.columns:
+        flash("No hay datos suficientes para análisis.", "warning")
+        return render_template(
+            'analisis.html',
+            title="Análisis de mantenimiento - Pareto",
+            pareto=[],
+            labels=[],
+            counts=[],
+            acumulado=[]
+        )
+
     df = df.dropna(subset=['Máquina'])
 
-    # Conteo de mantenciones por máquina
     pareto = df['Máquina'].value_counts().reset_index()
     pareto.columns = ['Máquina', 'Cantidad']
 
-    # Porcentaje y porcentaje acumulado
     total = pareto['Cantidad'].sum()
     pareto['Porcentaje'] = (pareto['Cantidad'] / total * 100).round(1)
     pareto['Acumulado'] = pareto['Porcentaje'].cumsum().round(1)
 
-    # Para el gráfico
     labels = pareto['Máquina'].tolist()
     counts = pareto['Cantidad'].tolist()
     acumulado = pareto['Acumulado'].tolist()
 
-    # Enviar datos a la plantilla
     pareto_registros = pareto.to_dict(orient='records')
 
     return render_template(
@@ -650,15 +667,17 @@ def analisis():
         acumulado=acumulado
     )
 
+
+# ===================== REPETITIVIDAD =====================
+
 @app.route('/repetitividad')
 def repetitividad():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    # Leer datos
-    try:
-        df = pd.read_csv("mantenciones.csv")
-    except FileNotFoundError:
+    df = cargar_mantenciones()
+
+    if df.empty:
         flash("No se encontró el archivo de mantenciones.", "danger")
         return render_template(
             'repetitividad.html',
@@ -672,7 +691,6 @@ def repetitividad():
             fecha_hasta=""
         )
 
-    # Validar columnas mínimas
     if 'Descripción' not in df.columns or 'Fecha' not in df.columns:
         flash("No existen columnas 'Descripción' y/o 'Fecha' en los datos.", "danger")
         return render_template(
@@ -687,25 +705,22 @@ def repetitividad():
             fecha_hasta=""
         )
 
-    # Limpiamos descripciones vacías
     df = df.dropna(subset=['Descripción'])
-
-    # Normalizamos fecha
     df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     df = df.dropna(subset=['Fecha'])
 
-    # ---------- Filtros ----------
     maquina_sel = (request.args.get('maquina') or "").strip()
+    if maquina_sel:
+        maquina_sel = normalizar_texto(maquina_sel)
+
     fecha_desde = (request.args.get('fecha_desde') or "").strip()
     fecha_hasta = (request.args.get('fecha_hasta') or "").strip()
 
     df_filtrado = df.copy()
 
-    # Filtro por máquina (si existe la columna)
     if maquina_sel and 'Máquina' in df_filtrado.columns:
         df_filtrado = df_filtrado[df_filtrado['Máquina'] == maquina_sel]
 
-    # Filtro por rango de fechas
     if fecha_desde:
         try:
             f_desde = pd.to_datetime(fecha_desde)
@@ -734,14 +749,12 @@ def repetitividad():
             fecha_hasta=fecha_hasta
         )
 
-    # ---------- Repetitividad de fallas ----------
     rep = df_filtrado['Descripción'].value_counts().reset_index()
     rep.columns = ['Descripción', 'Cantidad']
 
     total = rep['Cantidad'].sum()
     rep['Porcentaje'] = (rep['Cantidad'] / total * 100).round(1)
 
-    # Top 15 para gráfico (para que no quede saturado)
     rep_top = rep.head(15)
 
     labels = rep_top['Descripción'].tolist()
@@ -749,7 +762,6 @@ def repetitividad():
 
     rep_list = rep.to_dict(orient='records')
 
-    # Listado de máquinas para el filtro
     maquinas_unicas = []
     if 'Máquina' in df.columns:
         maquinas_unicas = sorted(df['Máquina'].dropna().unique().tolist())
@@ -767,44 +779,34 @@ def repetitividad():
     )
 
 
+# ===================== MTBF =====================
+
 @app.route('/mtbf')
 def mtbf():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
-    # Nos quedamos solo con máquinas y fechas válidas
     df = df.dropna(subset=['Máquina', 'Fecha'])
-
-    # Convertir Fecha a tipo datetime
     df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     df = df.dropna(subset=['Fecha'])
-
-    # Ordenar por máquina y fecha
     df = df.sort_values(by=['Máquina', 'Fecha'])
 
-    # Diferencia en días entre fallas consecutivas por máquina
     df['DifDias'] = df.groupby('Máquina')['Fecha'].diff().dt.days
 
-    # Calcular MTBF por máquina
     mtbf_df = df.groupby('Máquina').agg(
         Fallas=('Fecha', 'count'),
         MTBF_dias=('DifDias', 'mean')
     ).reset_index()
 
-    # Redondear MTBF y dejar NaN como None (para máquinas con una sola falla)
     mtbf_df['MTBF_dias'] = mtbf_df['MTBF_dias'].round(1)
     mtbf_df['MTBF_dias'] = mtbf_df['MTBF_dias'].where(mtbf_df['MTBF_dias'].notna(), None)
-
-    # Ordenar de menor a mayor MTBF (las más críticas primero)
     mtbf_df = mtbf_df.sort_values(by='MTBF_dias', na_position='last')
 
-    # Datos para gráfico
     labels = mtbf_df['Máquina'].tolist()
-    values = mtbf_df['MTBF_dias'].fillna(0).tolist()  # 0 para las que no tienen MTBF calculado
+    values = mtbf_df['MTBF_dias'].fillna(0).tolist()
 
-    # Tabla para template
     mtbf_list = mtbf_df.to_dict(orient='records')
 
     return render_template(
@@ -816,21 +818,20 @@ def mtbf():
     )
 
 
+# ===================== MTTR =====================
+
 @app.route('/mttr')
 def mttr():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
     if 'Duración_horas' not in df.columns:
         flash("Aún no hay datos de duración para calcular MTTR.", "warning")
         return redirect(url_for('analisis'))
 
-    # Convertir a número
     df['Duración_horas'] = pd.to_numeric(df['Duración_horas'], errors='coerce')
-
-    # Nos quedamos con filas que sí tienen duración
     df_valid = df.dropna(subset=['Máquina', 'Duración_horas'])
 
     if df_valid.empty:
@@ -843,8 +844,6 @@ def mttr():
     ).reset_index()
 
     mttr_df['MTTR_horas'] = mttr_df['MTTR_horas'].round(1)
-
-    # Ordenar de mayor a menor MTTR (las que más tiempo toman arriba)
     mttr_df = mttr_df.sort_values(by='MTTR_horas', ascending=False)
 
     labels = mttr_df['Máquina'].tolist()
@@ -860,33 +859,32 @@ def mttr():
         values=values
     )
 
+
+# ===================== DISPONIBILIDAD =====================
+
 @app.route('/disponibilidad')
 def disponibilidad():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
-    # Necesitamos estas columnas
     for col in ['Máquina', 'Fecha', 'Hora_inicio', 'Hora_fin']:
         if col not in df.columns:
             flash("Faltan datos de horas para calcular disponibilidad.", "warning")
             return redirect(url_for('analisis'))
 
-    # Eliminamos filas sin máquina o fecha
     df = df.dropna(subset=['Máquina', 'Fecha'])
     if df.empty:
         flash("No hay datos suficientes para calcular disponibilidad.", "warning")
         return redirect(url_for('analisis'))
 
-    # Convertimos Fecha a datetime
     df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     df = df.dropna(subset=['Fecha'])
     if df.empty:
         flash("No hay fechas válidas para calcular disponibilidad.", "warning")
         return redirect(url_for('analisis'))
 
-    # Construimos datetime de inicio y fin si existen las horas
     df['Hora_inicio'] = df['Hora_inicio'].fillna('')
     df['Hora_fin'] = df['Hora_fin'].fillna('')
 
@@ -899,7 +897,6 @@ def disponibilidad():
         errors='coerce'
     )
 
-    # Calculamos horas de caída (solo donde ambas horas son válidas)
     mask = df['Inicio_dt'].notna() & df['Fin_dt'].notna()
     df_valid = df[mask].copy()
 
@@ -910,7 +907,6 @@ def disponibilidad():
     df_valid['Downtime_horas'] = (df_valid['Fin_dt'] - df_valid['Inicio_dt']).dt.total_seconds() / 3600.0
     df_valid['Downtime_horas'] = df_valid['Downtime_horas'].clip(lower=0)
 
-    # Cálculo por máquina
     resultados = []
     for maquina, grupo in df_valid.groupby('Máquina'):
         fecha_min = grupo['Fecha'].min()
@@ -919,9 +915,9 @@ def disponibilidad():
         horas_totales = dias_periodo * 24
 
         downtime_total = grupo['Downtime_horas'].sum()
-        disponibilidad = None
+        disponibilidad_val = None
         if horas_totales > 0:
-            disponibilidad = (horas_totales - downtime_total) / horas_totales * 100
+            disponibilidad_val = (horas_totales - downtime_total) / horas_totales * 100
 
         resultados.append({
             'Máquina': maquina,
@@ -929,13 +925,10 @@ def disponibilidad():
             'Fecha_fin': fecha_max.date().isoformat(),
             'Horas_totales': round(horas_totales, 1),
             'Downtime_total': round(downtime_total, 1),
-            'Disponibilidad': round(disponibilidad, 2) if disponibilidad is not None else None
+            'Disponibilidad': round(disponibilidad_val, 2) if disponibilidad_val is not None else None
         })
 
-    
     res_df = pd.DataFrame(resultados)
-
-    # Ordenamos por menor disponibilidad (más crítica primero)
     res_df = res_df.sort_values(by='Disponibilidad', ascending=True)
 
     labels = res_df['Máquina'].tolist()
@@ -951,6 +944,9 @@ def disponibilidad():
         values=values
     )
 
+
+# ===================== INFORME PDF =====================
+
 @app.route('/informe_pdf')
 def informe_pdf():
     if not session.get("logged_in"):
@@ -959,19 +955,12 @@ def informe_pdf():
     usuario = session.get("usuario", "admin")
     rol = session.get("rol", "admin")
 
-    # Filtros recibidos desde la URL
     maquina_filtro = request.args.get("maquina", "Todas")
     responsable_filtro = request.args.get("responsable", "Todos")
     fecha_desde = request.args.get("fecha_desde", "")
     fecha_hasta = request.args.get("fecha_hasta", "")
 
-    # ================== Cargar datos ==================
-    try:
-        df = pd.read_csv("mantenciones.csv")
-    except FileNotFoundError:
-        df = pd.DataFrame()
-
-    # Aplicar filtros
+    df = cargar_mantenciones()
     df = aplicar_filtros(df, maquina_filtro, responsable_filtro, fecha_desde, fecha_hasta)
 
     if df.empty or 'Fecha' not in df.columns:
@@ -985,11 +974,9 @@ def informe_pdf():
         df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
         df = df.dropna(subset=['Fecha'])
 
-        # Totales
         total_mantenimientos = len(df)
         total_maquinas = df['Máquina'].nunique() if 'Máquina' in df.columns else 0
 
-        # MTBF global
         mtbf_global = None
         if 'Máquina' in df.columns:
             df_mtbf = df.sort_values(by=['Máquina', 'Fecha'])
@@ -997,14 +984,12 @@ def informe_pdf():
             if df_mtbf['DifDias'].notna().any():
                 mtbf_global = round(df_mtbf['DifDias'].dropna().mean(), 1)
 
-        # MTTR global
         mttr_global = None
         if 'Duración_horas' in df.columns:
             df['Duración_horas'] = pd.to_numeric(df['Duración_horas'], errors='coerce')
             if df['Duración_horas'].notna().any():
                 mttr_global = round(df['Duración_horas'].dropna().mean(), 1)
 
-        # Disponibilidad global
         disponibilidad_global = None
         if all(col in df.columns for col in ['Hora_inicio', 'Hora_fin']):
             df_horas = df.copy()
@@ -1040,7 +1025,6 @@ def informe_pdf():
                         (horas_totales - downtime_total) / horas_totales * 100, 2
                     )
 
-        # ================== Detalle para la tabla ==================
         detalle = []
         for _, row in df.sort_values('Fecha').iterrows():
             fecha_str = row['Fecha'].strftime('%d-%m-%Y')
@@ -1054,7 +1038,6 @@ def informe_pdf():
                 dur_str = str(dur)
             detalle.append([fecha_str, maquina, tipo, resp, dur_str])
 
-    # ================== Crear PDF (Portada + gráficos + detalle + firmas) ==================
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -1064,16 +1047,13 @@ def informe_pdf():
     logo_path = os.path.join(app.root_path, 'static', 'logo_wintec.png')
 
     def dibujar_header():
-        # Header azul
         c.setFillColor(azul_wintec)
         c.rect(0, height - header_height, width, header_height, fill=1, stroke=0)
 
-        # Línea blanca
         c.setStrokeColor(colors.white)
         c.setLineWidth(1)
         c.line(0, height - header_height, width, height - header_height)
 
-        # Logo
         if os.path.exists(logo_path):
             c.drawImage(
                 logo_path,
@@ -1085,12 +1065,10 @@ def informe_pdf():
                 mask='auto'
             )
 
-        # Título en header
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 16)
         c.drawString(70 * mm, height - header_height + 16 * mm, "Informe de Mantenimiento")
 
-        # Fecha + usuario
         c.setFont("Helvetica-Bold", 9)
         fecha_str = datetime.now().strftime("%d-%m-%Y %H:%M")
         c.drawRightString(
@@ -1109,16 +1087,14 @@ def informe_pdf():
             f"Wintec S.A. - Departamento de Mantenimiento Industrial  |  Página {page_num}"
         )
 
-    # Texto de filtros para usar en todas las páginas
     texto_maquina = f"Máquina: {maquina_filtro}" if maquina_filtro != "Todas" else "Máquina: Todas"
     texto_resp = f"Responsable: {responsable_filtro}" if responsable_filtro != "Todos" else "Responsable: Todos"
     texto_desde = fecha_desde if fecha_desde else "-"
     texto_hasta = fecha_hasta if fecha_hasta else "-"
 
-    # ================== PÁGINA 1: PORTADA PREMIUM ==================
+    # -------- PÁGINA 1: PORTADA --------
     dibujar_header()
 
-    # Caja central
     c.setFillColor(colors.whitesmoke)
     box_width = width - 60 * mm
     box_height = 60 * mm
@@ -1126,16 +1102,13 @@ def informe_pdf():
     box_y = (height - box_height) / 2.0
     c.rect(box_x, box_y, box_width, box_height, fill=1, stroke=0)
 
-    # Título grande
     c.setFillColor(colors.black)
     c.setFont("Helvetica-Bold", 20)
     c.drawCentredString(width / 2.0, box_y + box_height - 12 * mm, "Informe de Mantenimiento")
 
-    # Subtítulo
     c.setFont("Helvetica", 11)
     c.drawCentredString(width / 2.0, box_y + box_height - 25 * mm, "Resumen de actividades de mantenimiento")
 
-    # Periodo analizado
     c.setFont("Helvetica", 10)
     c.drawCentredString(
         width / 2.0,
@@ -1151,12 +1124,11 @@ def informe_pdf():
     dibujar_footer()
     c.showPage()
 
-    # ================== PÁGINA 2: RESUMEN + GRÁFICOS ==================
+    # -------- PÁGINA 2: RESUMEN + GRÁFICOS --------
     dibujar_header()
     c.setFillColor(colors.black)
     y = height - header_height - 15 * mm
 
-    # Filtros aplicados
     c.setFont("Helvetica-Bold", 11)
     c.drawString(15 * mm, y, "Filtros aplicados")
     y -= 6 * mm
@@ -1171,7 +1143,6 @@ def informe_pdf():
     c.drawString(15 * mm, y, f"Desde: {texto_desde}    |    Hasta: {texto_hasta}")
     y -= 10 * mm
 
-    # Resumen general
     c.setFont("Helvetica-Bold", 11)
     c.drawString(15 * mm, y, "Resumen general")
     y -= 6 * mm
@@ -1207,14 +1178,14 @@ def informe_pdf():
         ('BACKGROUND', (0, 2), (-1, 2), colors.whitesmoke),
     ]))
 
-    w, h = tabla_resumen.wrap(width - 30 * mm, y)
-    tabla_resumen.drawOn(c, 15 * mm, y - h)
-    y = y - h - 10 * mm
+    w_tab, h_tab = tabla_resumen.wrap(width - 30 * mm, y)
+    tabla_resumen.drawOn(c, 15 * mm, y - h_tab)
+    y = y - h_tab - 10 * mm
 
     graf_height = 45 * mm
     graf_width = width - 30 * mm
 
-    # -------- GRÁFICO 1: Mantenimientos por máquina (SIEMPRE que haya datos) --------
+    # Gráfico 1: Mantenimientos por máquina
     if not df.empty and 'Máquina' in df.columns:
         conteo = df['Máquina'].fillna("Sin máquina").value_counts().sort_values(ascending=True)
 
@@ -1238,7 +1209,7 @@ def informe_pdf():
             c.drawImage(img, 15 * mm, y - graf_height, width=graf_width, height=graf_height)
             y = y - graf_height - 8 * mm
 
-    # -------- GRÁFICO 2: Mantenimientos por tipo (Correctivo vs Preventivo, etc.) --------
+    # Gráfico 2: Mantenimientos por tipo
     if not df.empty and 'Tipo' in df.columns:
         df_tipo = df.copy()
         df_tipo['Tipo'] = df_tipo['Tipo'].fillna('Sin tipo')
@@ -1262,7 +1233,6 @@ def informe_pdf():
 
             img2 = ImageReader(graf_buffer2)
 
-            # Si no hay espacio suficiente, nueva página para el segundo gráfico
             min_y = 40 * mm
             if y - graf_height < min_y:
                 dibujar_footer()
@@ -1280,7 +1250,7 @@ def informe_pdf():
     dibujar_footer()
     c.showPage()
 
-    # ================== PÁGINAS SIGUIENTES: DETALLE MULTIPÁGINA ==================
+    # -------- DETALLE MULTIPÁGINA --------
     encabezado_detalle = ["Fecha", "Máquina", "Tipo", "Responsable", "Duración (h)"]
     filas_por_pagina = 25
     start = 0
@@ -1328,15 +1298,15 @@ def informe_pdf():
                 style_detalle.append(('BACKGROUND', (0, row), (-1, row), colors.whitesmoke))
 
         tabla_detalle.setStyle(TableStyle(style_detalle))
-        w, h = tabla_detalle.wrap(width - 30 * mm, y)
-        tabla_detalle.drawOn(c, 15 * mm, y - h)
+        w_tab2, h_tab2 = tabla_detalle.wrap(width - 30 * mm, y)
+        tabla_detalle.drawOn(c, 15 * mm, y - h_tab2)
 
         dibujar_footer()
         c.showPage()
 
         start += filas_por_pagina
 
-    # ================== PÁGINA FINAL: FIRMAS ==================
+    # -------- PÁGINA FINAL: FIRMAS --------
     dibujar_header()
     c.setFillColor(colors.black)
     y = height - header_height - 25 * mm
@@ -1347,16 +1317,13 @@ def informe_pdf():
 
     c.setFont("Helvetica", 10)
 
-    # Elaborado por
     c.drawString(25 * mm, y, f"Elaborado por: {usuario}")
     c.line(25 * mm, y - 3 * mm, 85 * mm, y - 3 * mm)
 
-    # Revisado por
     y -= 18 * mm
     c.drawString(25 * mm, y, "Revisado por:")
     c.line(25 * mm, y - 3 * mm, 85 * mm, y - 3 * mm)
 
-    # Aprobado por
     y -= 18 * mm
     c.drawString(25 * mm, y, "Aprobado por:")
     c.line(25 * mm, y - 3 * mm, 85 * mm, y - 3 * mm)
@@ -1374,44 +1341,15 @@ def informe_pdf():
     )
 
 
-
-
-
-
-
-
-
-
+# ===================== ANÁLISIS POR MÁQUINA =====================
 
 @app.route('/maquinas')
 def maquinas():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    # ---------- Leer datos ----------
-    try:
-        df = pd.read_csv("mantenciones.csv")
-    except FileNotFoundError:
-        flash("No se encontró el archivo de mantenciones.", "danger")
-        return render_template(
-            'maquinas.html',
-            title="Análisis por máquina",
-            maquinas=[],
-            maquina_seleccionada=None,
-            total_mant=0,
-            total_corr=0,
-            total_prev=0,
-            disponibilidad=None,
-            mtbf=None,
-            mttr=None,
-            labels_hist=[],
-            values_hist=[],
-            tabla=[],
-            usuario=session.get("usuario"),
-            rol=session.get("rol")
-        )
+    df = cargar_mantenciones()
 
-    # Validaciones básicas
     if df.empty or 'Máquina' not in df.columns or 'Fecha' not in df.columns:
         flash("No hay datos suficientes para análisis por máquina.", "warning")
         return render_template(
@@ -1432,7 +1370,6 @@ def maquinas():
             rol=session.get("rol")
         )
 
-    # ---------- Preparar datos base ----------
     df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     df = df.dropna(subset=['Fecha'])
 
@@ -1458,14 +1395,12 @@ def maquinas():
             rol=session.get("rol")
         )
 
-    # Máquina seleccionada: por querystring o la primera
     maquina_sel = request.args.get('maquina')
     if not maquina_sel or maquina_sel not in maquinas:
         maquina_sel = maquinas[0]
 
     sub = df[df['Máquina'] == maquina_sel].copy()
 
-    # Columnas opcionales
     if 'Tipo' not in sub.columns:
         sub['Tipo'] = None
     if 'Duración_horas' not in sub.columns:
@@ -1473,12 +1408,10 @@ def maquinas():
 
     sub['Duración_horas'] = pd.to_numeric(sub['Duración_horas'], errors='coerce')
 
-    # ---------- KPIs ----------
     total_mant = len(sub)
     total_corr = int((sub['Tipo'] == 'Correctivo').sum()) if 'Tipo' in sub.columns else 0
     total_prev = int((sub['Tipo'] == 'Preventivo').sum()) if 'Tipo' in sub.columns else 0
 
-    # MTBF
     mtbf = None
     if total_mant > 1:
         sub_mtbf = sub.sort_values(by='Fecha')
@@ -1486,12 +1419,10 @@ def maquinas():
         if sub_mtbf['DifDias'].notna().any():
             mtbf = round(sub_mtbf['DifDias'].dropna().mean(), 1)
 
-    # MTTR
     mttr = None
     if sub['Duración_horas'].notna().any():
         mttr = round(sub['Duración_horas'].dropna().mean(), 1)
 
-    # Disponibilidad por máquina (si tienes horas de inicio/fin)
     disponibilidad = None
     if 'Hora_inicio' in sub.columns and 'Hora_fin' in sub.columns:
         sh = sub.copy()
@@ -1525,7 +1456,6 @@ def maquinas():
                     (horas_totales - downtime_total) / horas_totales * 100, 2
                 )
 
-    # ---------- Historial para gráfico ----------
     hist = (
         sub.groupby(sub['Fecha'].dt.strftime('%Y-%m-%d'))
            .size()
@@ -1540,7 +1470,6 @@ def maquinas():
         labels_hist = []
         values_hist = []
 
-    # ---------- Tabla detalle ----------
     tabla = []
     for _, row in sub.sort_values('Fecha').iterrows():
         tabla.append({
@@ -1573,25 +1502,24 @@ def maquinas():
     )
 
 
-
 @app.route('/maquina/<maquina>')
 def maquina_detalle(maquina):
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
     if df.empty or 'Máquina' not in df.columns:
         flash("No hay datos para analizar esta máquina.", "warning")
         return redirect(url_for('maquinas'))
 
+    # IMPORTANTE: las máquinas ya vienen normalizadas desde cargar_mantenciones
     df = df[df['Máquina'] == maquina]
 
     if df.empty:
         flash(f"No se encontraron registros para la máquina '{maquina}'.", "warning")
         return redirect(url_for('maquinas'))
 
-    # Fechas
     if 'Fecha' in df.columns:
         df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
     else:
@@ -1608,24 +1536,20 @@ def maquina_detalle(maquina):
 
     df = df.sort_values(by='Fecha')
 
-    # KPIs
     fallas = len(df)
     fecha_primera = df['Fecha'].min()
     fecha_ultima = df['Fecha'].max()
 
-    # MTBF
     mtbf = None
     if df['Fecha'].notna().sum() >= 2:
         dif = df['Fecha'].diff().dt.days
         if dif.notna().any():
             mtbf = round(dif.dropna().mean(), 1)
 
-    # MTTR
     mttr = None
     if df['Duración_horas'].notna().any():
         mttr = round(df['Duración_horas'].dropna().mean(), 1)
 
-    # Disponibilidad
     disponibilidad = None
     if df['Fecha'].notna().any():
         g_horas = df.copy()
@@ -1661,10 +1585,8 @@ def maquina_detalle(maquina):
                     (horas_totales - downtime_total) / horas_totales * 100, 2
                 )
 
-    # Historial para tabla
     historial = df.sort_values(by='Fecha').to_dict(orient='records')
 
-    # Gráfico: fallas por fecha
     df_fechas = df.copy()
     df_fechas = df_fechas.dropna(subset=['Fecha'])
     conteo = df_fechas['Fecha'].dt.date.value_counts().sort_index()
@@ -1686,27 +1608,29 @@ def maquina_detalle(maquina):
         values=values
     )
 
+
+# ===================== PREVENTIVOS =====================
+
 @app.route('/preventivos')
 def preventivos():
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
-    if 'Próximo_mantenimiento' not in df.columns:
+    if 'Próximo_mantenimiento' not in df.columns or 'Tipo' not in df.columns:
         flash("No hay información de preventivos.", "warning")
         return redirect(url_for('home'))
 
     hoy = datetime.now().date()
-
-    preventivos = []
+    preventivos_list = []
 
     for i, row in df.iterrows():
         if row['Tipo'] == 'Preventivo' and pd.notna(row['Próximo_mantenimiento']):
             prox = datetime.strptime(str(row['Próximo_mantenimiento']), "%Y-%m-%d").date()
             dias = (prox - hoy).days
 
-            preventivos.append({
+            preventivos_list.append({
                 "indice": i,
                 "Máquina": row['Máquina'],
                 "Fecha": row['Fecha'],
@@ -1720,41 +1644,37 @@ def preventivos():
                 )
             })
 
-    # estadísticas
-    total = len(preventivos)
-    vencidos = len([p for p in preventivos if p["Estado_prev"] == "Vencido"])
-    proximos = len([p for p in preventivos if p["Estado_prev"] == "Próximo"])
-    ok = len([p for p in preventivos if p["Estado_prev"] == "OK"])
+    total = len(preventivos_list)
+    vencidos = len([p for p in preventivos_list if p["Estado_prev"] == "Vencido"])
+    proximos = len([p for p in preventivos_list if p["Estado_prev"] == "Próximo"])
+    ok = len([p for p in preventivos_list if p["Estado_prev"] == "OK"])
 
     return render_template(
         'preventivos.html',
-        preventivos=preventivos,
+        preventivos=preventivos_list,
         total=total,
         vencidos=vencidos,
         proximos=proximos,
         ok=ok
     )
 
+
 @app.route("/preventivos/marcar/<int:indice>", methods=["POST"])
 def marcar_realizado(indice):
     if not session.get("logged_in"):
         return redirect(url_for("login"))
 
-    df = pd.read_csv("mantenciones.csv")
+    df = cargar_mantenciones()
 
-    # Validar índice
     if indice < 0 or indice >= len(df):
         flash("No se encontró el registro de preventivo.", "danger")
         return redirect(url_for("preventivos"))
 
-    # Fila actual
     fila = df.loc[indice]
 
-    # Fecha de hoy
     hoy_date = datetime.now().date()
     hoy_str = hoy_date.strftime("%Y-%m-%d")
 
-    # Frecuencia en días
     freq = 0
     if "Frecuencia_dias" in df.columns and not pd.isna(fila.get("Frecuencia_dias")):
         try:
@@ -1762,11 +1682,9 @@ def marcar_realizado(indice):
         except ValueError:
             freq = 0
 
-    # Nuevo próximo mantenimiento
     proximo_date = hoy_date + timedelta(days=freq)
     proximo_str = proximo_date.strftime("%Y-%m-%d")
 
-    # Actualizar CSV
     df.at[indice, "Fecha"] = hoy_str
     df.at[indice, "Próximo_mantenimiento"] = proximo_str
 
@@ -1774,6 +1692,9 @@ def marcar_realizado(indice):
 
     flash("Preventivo marcado como realizado correctamente.", "success")
     return redirect(url_for("preventivos"))
+
+
+# ===================== ADMIN USUARIOS =====================
 
 @app.route('/usuarios')
 def usuarios():
@@ -1792,6 +1713,8 @@ def usuarios():
         usuario=session.get("usuario"),
         rol=session.get("rol")
     )
+
+
 @app.route('/usuarios/nuevo', methods=['POST'])
 def crear_usuario():
     if not session.get("logged_in"):
@@ -1800,30 +1723,34 @@ def crear_usuario():
         flash("No tienes permisos para crear usuarios.", "danger")
         return redirect(url_for("usuarios"))
 
-    nombre = request.form.get('usuario', '').strip()
+    nombre_raw = request.form.get('usuario', '').strip()
     contrasena = request.form.get('contrasena', '').strip()
-    rol = request.form.get('rol', '').strip()
+    rol_raw = request.form.get('rol', '').strip()
+
+    nombre = normalizar_usuario(nombre_raw)
+    rol = normalizar_rol(rol_raw)
 
     if not nombre or not contrasena or not rol:
         flash("Todos los campos son obligatorios.", "warning")
         return redirect(url_for("usuarios"))
 
-    usuarios = cargar_usuarios()
+    usuarios_lista = cargar_usuarios()
 
-    # Evitar duplicados
-    if any(u['usuario'] == nombre for u in usuarios):
-        flash("Ya existe un usuario con ese nombre.", "danger")
+    # Evitar duplicados por may/min
+    if any(u['usuario'] == nombre for u in usuarios_lista):
+        flash("Ya existe un usuario con ese nombre (independiente de mayúsculas o minúsculas).", "danger")
         return redirect(url_for("usuarios"))
 
-    usuarios.append({
+    usuarios_lista.append({
         'usuario': nombre,
         'contrasena': contrasena,
         'rol': rol
     })
 
-    guardar_usuarios(usuarios)
+    guardar_usuarios(usuarios_lista)
     flash("Usuario creado correctamente.", "success")
     return redirect(url_for("usuarios"))
+
 
 @app.route('/usuarios/eliminar/<usuario_nombre>', methods=['POST'])
 def eliminar_usuario(usuario_nombre):
@@ -1833,16 +1760,18 @@ def eliminar_usuario(usuario_nombre):
         flash("No tienes permisos para eliminar usuarios.", "danger")
         return redirect(url_for("usuarios"))
 
-    usuarios = cargar_usuarios()
+    usuario_nombre_norm = normalizar_usuario(usuario_nombre)
 
-    # Nunca dejar borrar al admin principal
-    if usuario_nombre == "admin":
+    usuarios_lista = cargar_usuarios()
+
+    # Nunca dejar borrar al admin principal (case-insensitive)
+    if usuario_nombre_norm == "admin":
         flash("No puedes eliminar al usuario admin.", "warning")
         return redirect(url_for("usuarios"))
 
-    nuevos_usuarios = [u for u in usuarios if u['usuario'] != usuario_nombre]
+    nuevos_usuarios = [u for u in usuarios_lista if u['usuario'] != usuario_nombre_norm]
 
-    if len(nuevos_usuarios) == len(usuarios):
+    if len(nuevos_usuarios) == len(usuarios_lista):
         flash("Usuario no encontrado.", "warning")
     else:
         guardar_usuarios(nuevos_usuarios)
@@ -1850,6 +1779,8 @@ def eliminar_usuario(usuario_nombre):
 
     return redirect(url_for("usuarios"))
 
+
+# ===================== UTILIDAD =====================
 
 def requiere_admin():
     if not session.get("logged_in"):
