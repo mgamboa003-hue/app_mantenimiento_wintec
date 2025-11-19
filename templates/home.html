@@ -14,40 +14,99 @@
 
   <!-- Estilos personalizados -->
   <style>
-    /* Tabla más moderna */
+    /* === TABLA PRINCIPAL ERP PRO === */
     .table-modern {
       border-collapse: separate;
       border-spacing: 0;
-      border-radius: 0.75rem;
-      overflow: hidden;
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.05);
+      width: 100%;
       background-color: #ffffff;
-    }
-    .table-modern thead {
-      background: #f5f7fb;
-    }
-    .table-modern thead th {
-      border-bottom: 1px solid #dee2e6;
-      font-weight: 600;
+      border-radius: 0.9rem;
+      overflow: hidden;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
       font-size: 0.9rem;
     }
+
+    .table-modern thead {
+      background: linear-gradient(90deg, #f5f7fb, #e9edf9);
+    }
+
+    .table-modern thead th {
+      border-bottom: 1px solid #dee2e6;
+      padding: 0.65rem 0.75rem;
+      font-weight: 600;
+      color: #1f2937;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+
+    .table-modern tbody td {
+      padding: 0.60rem 0.75rem;
+      vertical-align: middle;
+      border-top: 1px solid #f0f2fa;
+    }
+
     .table-modern tbody tr:nth-of-type(odd) {
       background-color: #fafbff;
     }
+
     .table-modern tbody tr:nth-of-type(even) {
       background-color: #ffffff;
     }
+
     .table-modern tbody tr:hover {
       background-color: #eef3ff;
-      transition: background-color 0.2s ease;
+      transition:
+        background-color 0.18s ease,
+        transform 0.18s ease;
+      transform: translateY(-1px);
     }
 
-        /* Botones Editar / Eliminar Pro */
+    /* Columnas específicas para que todo quede alineado y parejo */
+    .col-maquina {
+      width: 150px;
+      font-weight: 500;
+    }
+
+    .col-fecha {
+      white-space: nowrap;
+      width: 130px;
+    }
+
+    .col-descripcion {
+      max-width: 420px;
+    }
+
+    .col-responsable {
+      width: 140px;
+    }
+
+    .col-duracion {
+      width: 110px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .col-estado {
+      width: 130px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .col-acciones {
+      width: 180px;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: middle !important;
+    }
+
+    /* Botones Editar / Eliminar Pro */
     .btn-accion {
       min-width: 92px;
       font-size: 0.78rem;
       font-weight: 600;
-      border-radius: 999px;
+      border-radius: 999px !important;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -58,7 +117,7 @@
         background-color 0.18s ease;
     }
 
-    /* Ícono + texto bien alineados en todos los botones de acción */
+    /* Ícono + texto bien alineados */
     .btn-accion i {
       font-size: 0.8rem;
       margin-right: 4px;
@@ -69,6 +128,7 @@
       line-height: 1;
     }
 
+    /* Hover PRO */
     .btn-accion:hover {
       transform: translateY(-1px);
       box-shadow: 0 0 0.45rem rgba(0, 0, 0, 0.18);
@@ -86,10 +146,20 @@
       color: #ffffff !important;
     }
 
-    /* Celda de acciones alineada */
-    td.col-acciones {
-      white-space: nowrap;
-      vertical-align: middle !important;
+    /* Corrección total del btn-group para mantener bordes redondos y espacio */
+    .btn-group .btn-accion {
+      border-radius: 999px !important;
+      margin-left: 0.35rem !important;
+    }
+    .btn-group > .btn-accion:first-child {
+      margin-left: 0 !important;
+    }
+
+    /* Contenedor de acciones moderno */
+    .acciones-wrapper {
+      display: inline-flex;
+      gap: 0.35rem;
+      align-items: center;
     }
 
     /* Modal edición estilo moderno */
@@ -109,11 +179,41 @@
       padding-top: 0.75rem;
     }
 
-    /* Arreglo: que Bootstrap no aplane el borde del botón EDITAR dentro de .btn-group */
-    .btn-group .btn-accion {
-      border-radius: 999px !important;
-    }
+    /* ===== Ajustes RESPONSIVE para celulares ===== */
+    @media (max-width: 576px) {
 
+      .table-modern {
+        font-size: 0.78rem;
+      }
+
+      .table-modern th,
+      .table-modern td {
+        padding: 0.25rem 0.35rem;
+      }
+
+      .col-descripcion {
+        max-width: 260px;
+      }
+
+      .col-acciones {
+        white-space: nowrap;
+      }
+
+      .btn-accion {
+        min-width: auto;
+        padding: 0.15rem 0.4rem;
+        font-size: 0.7rem;
+      }
+
+      .btn-accion i {
+        margin-right: 0;
+      }
+
+      /* En móvil mostramos solo el ícono para ahorrar ancho */
+      .btn-accion span.texto-boton {
+        display: none;
+      }
+    }
   </style>
 
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -259,29 +359,28 @@
     <!-- TABLA -->
     <div class="table-responsive">
       <table class="table table-modern">
-        <thead class="thead-light">
+        <thead>
           <tr>
-            <th>Máquina</th>
-            <th>Fecha</th>
-            <th>Descripción</th>
-            <th>Responsable</th>
-            <th>Duración (horas)</th>
-            <th>Estado preventivo</th>
+            <th class="col-maquina">Máquina</th>
+            <th class="col-fecha">Fecha</th>
+            <th class="col-descripcion">Descripción</th>
+            <th class="col-responsable">Responsable</th>
+            <th class="col-duracion">Duración (horas)</th>
+            <th class="col-estado">Estado preventivo</th>
             {% if puede_editar %}
-              <th class="text-center">Acciones</th>
+              <th class="col-acciones">Acciones</th>
             {% endif %}
           </tr>
         </thead>
-
         <tbody>
           {% for m in mantenimientos %}
           <tr>
-            <td>{{ m['Máquina'] }}</td>
-            <td style="white-space: nowrap;">{{ m['Fecha'] }}</td>
-            <td>{{ m['Descripción'] }}</td>
-            <td>{{ m['Responsable'] }}</td>
+            <td class="col-maquina">{{ m['Máquina'] }}</td>
+            <td class="col-fecha" style="white-space: nowrap;">{{ m['Fecha'] }}</td>
+            <td class="col-descripcion">{{ m['Descripción'] }}</td>
+            <td class="col-responsable">{{ m['Responsable'] }}</td>
 
-            <td>
+            <td class="col-duracion">
               {% if m['Duración_horas'] %}
                 {{ m['Duración_horas'] }}
               {% else %}
@@ -290,7 +389,7 @@
             </td>
 
             <!-- ESTADO PREVENTIVO -->
-            <td>
+            <td class="col-estado">
               {% if m['Estado_prev'] == 'Vencido' %}
                 <span class="badge badge-danger">Vencido</span>
               {% elif m['Estado_prev'] == 'Hoy' %}
@@ -306,27 +405,25 @@
 
             {% if puede_editar %}
             <td class="text-center col-acciones">
-              <div class="btn-group" role="group" aria-label="Acciones mantenimiento">
+              <div class="acciones-wrapper" role="group" aria-label="Acciones mantenimiento">
                 <!-- EDITAR -->
                 <button type="button"
                         class="btn btn-sm btn-warning btn-accion btn-editar"
                         data-toggle="modal"
                         data-target="#modalEditar{{ loop.index0 }}">
                   <i class="fas fa-edit"></i>
-                  <span>Editar</span>
+                  <span class="texto-boton">Editar</span>
                 </button>
-
-
 
                 <!-- ELIMINAR -->
                 <form action="{{ url_for('eliminar_mantenimiento', indice=loop.index0) }}"
                       method="post"
                       class="d-inline">
                   <button type="submit"
-                          class="btn btn-sm btn-danger btn-accion ml-2"
+                          class="btn btn-sm btn-danger btn-accion"
                           onclick="return confirm('¿Eliminar este registro?')">
-                    <i class="fas fa-trash-alt text-white"></i>
-                    <span>Eliminar</span>
+                    <i class="fas fa-trash-alt"></i>
+                    <span class="texto-boton">Eliminar</span>
                   </button>
                 </form>
               </div>
