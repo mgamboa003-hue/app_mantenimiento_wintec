@@ -1655,7 +1655,8 @@ def preventivos():
         total=total,
         vencidos=vencidos,
         proximos=proximos,
-        ok=ok
+        ok=ok,
+        rol=session.get("rol")
     )
 
 
