@@ -63,37 +63,13 @@
       transform: translateY(-1px);
     }
 
-    /* Columnas específicas para que todo quede alineado y parejo */
-    .col-maquina {
-      width: 150px;
-      font-weight: 500;
-    }
-
-    .col-fecha {
-      white-space: nowrap;
-      width: 130px;
-    }
-
-    .col-descripcion {
-      max-width: 420px;
-    }
-
-    .col-responsable {
-      width: 140px;
-    }
-
-    .col-duracion {
-      width: 110px;
-      text-align: center;
-      white-space: nowrap;
-    }
-
-    .col-estado {
-      width: 130px;
-      text-align: center;
-      white-space: nowrap;
-    }
-
+    /* Columnas específicas */
+    .col-maquina { width: 150px; font-weight: 500; }
+    .col-fecha { width: 130px; white-space: nowrap; }
+    .col-descripcion { max-width: 420px; }
+    .col-responsable { width: 140px; }
+    .col-duracion { width: 110px; text-align:center; white-space: nowrap; }
+    .col-estado { width:130px; text-align:center; white-space:nowrap; }
     .col-acciones {
       width: 180px;
       text-align: center;
@@ -101,7 +77,7 @@
       vertical-align: middle !important;
     }
 
-    /* Botones Editar / Eliminar Pro */
+    /* Botones */
     .btn-accion {
       min-width: 92px;
       font-size: 0.78rem;
@@ -111,80 +87,65 @@
       align-items: center;
       justify-content: center;
       padding: 0.25rem 0.75rem;
-      transition:
-        box-shadow 0.18s ease,
-        transform 0.18s ease,
-        background-color 0.18s ease;
+      transition: box-shadow 0.18s ease,
+                  transform 0.18s ease,
+                  background-color 0.18s ease;
     }
 
-    /* Ícono + texto bien alineados */
     .btn-accion i {
       font-size: 0.8rem;
       margin-right: 4px;
       line-height: 1;
     }
+
     .btn-accion span {
       margin-left: 0;
       line-height: 1;
     }
 
-    /* Hover PRO */
     .btn-accion:hover {
       transform: translateY(-1px);
       box-shadow: 0 0 0.45rem rgba(0, 0, 0, 0.18);
     }
+
     .btn-accion:active {
       transform: translateY(0);
       box-shadow: none;
     }
 
-    /* Botón EDITAR – icono y texto blancos sobre fondo amarillo */
-    .btn-editar {
-      color: #ffffff !important;
-    }
-    .btn-editar i {
-      color: #ffffff !important;
-    }
+    .btn-editar { color:#fff !important; }
+    .btn-editar i { color:#fff !important; }
 
-    /* Corrección total del btn-group para mantener bordes redondos y espacio */
     .btn-group .btn-accion {
       border-radius: 999px !important;
       margin-left: 0.35rem !important;
     }
+
     .btn-group > .btn-accion:first-child {
       margin-left: 0 !important;
     }
 
-    /* Contenedor de acciones moderno */
     .acciones-wrapper {
       display: inline-flex;
       gap: 0.35rem;
       align-items: center;
     }
 
-    /* Modal edición estilo moderno */
+    /* Modal moderno */
     .modal-modern .modal-content {
       border-radius: 1rem;
       border: none;
       box-shadow: 0 15px 30px rgba(15, 23, 42, 0.18);
     }
-    .modal-modern .modal-header {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-    .modal-modern .modal-title {
-      font-weight: 600;
-    }
-    .modal-modern .modal-body {
-      padding-top: 0.75rem;
-    }
 
-    /* ===== Ajustes RESPONSIVE para celulares ===== */
+    .modal-modern .modal-header { border-bottom:none; padding-bottom:0; }
+    .modal-modern .modal-title { font-weight:600; }
+    .modal-modern .modal-body { padding-top:0.75rem; }
+
+    /* ===== Ajustes RESPONSIVE básicos ===== */
     @media (max-width: 576px) {
 
-      .table-modern {
-        font-size: 0.78rem;
-      }
+      .table-modern { font-size: 0.78rem; }
 
       .table-modern th,
       .table-modern td {
@@ -193,10 +154,6 @@
 
       .col-descripcion {
         max-width: 260px;
-      }
-
-      .col-acciones {
-        white-space: nowrap;
       }
 
       .btn-accion {
@@ -209,12 +166,54 @@
         margin-right: 0;
       }
 
-      /* En móvil mostramos solo el ícono para ahorrar ancho */
       .btn-accion span.texto-boton {
         display: none;
       }
     }
-  </style>
+
+    /* ======================================================
+       🔥 FIX DEFINITIVO PARA CELULAR
+       (Botones sin cortar + tabla siempre completa)
+       ====================================================== */
+    @media (max-width: 576px) {
+
+      /* Reducir ancho de columnas */
+      .col-maquina { width: 90px !important; }
+      .col-fecha { width: 90px !important; }
+
+      .col-descripcion {
+        max-width: 160px !important;
+        white-space: normal !important;
+      }
+
+      /* Quitar ancho fijo de acciones */
+      .col-acciones {
+        width: auto !important;
+        max-width: 70px !important;
+        text-align: center;
+        white-space: nowrap !important;
+      }
+
+      /* Botones ultra compactos */
+      .btn-accion {
+        min-width: auto !important;
+        padding: 0.10rem 0.35rem !important;
+        font-size: 0.65rem !important;
+      }
+
+      .btn-accion i {
+        font-size: 0.8rem !important;
+        margin-right: 0 !important;
+      }
+
+      /* Ocultar texto en celular → solo ícono */
+      .btn-accion span {
+        display: none !important;
+      }
+    }
+
+</style>
+
 
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
