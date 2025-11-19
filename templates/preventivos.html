@@ -108,14 +108,19 @@
         </td>
 
         <td>
+            {% if rol == 'admin' or rol == 'tecnico' %}
             <form action="{{ url_for('marcar_realizado', indice=p['indice']) }}"
-                  method="post" style="display:inline;">
-              <button type="submit" class="btn btn-sm btn-success"
-                      onclick="return confirm('¿Marcar como realizado? Se sumará un nuevo registro y se actualizará la fecha.')">
-                Marcar realizado
-              </button>
-            </form>
-        </td>
+              method="post" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-success"
+                  onclick="return confirm('¿Marcar como realizado? Se sumará un nuevo registro y se actualizará la fecha.')">
+            Marcar realizado
+          </button>
+        </form>
+    {% else %}
+        <span class="text-muted">No permitido</span>
+    {% endif %}
+</td>
+
 
       </tr>
       {% endfor %}
