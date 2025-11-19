@@ -14,205 +14,169 @@
 
   <!-- Estilos personalizados -->
   <style>
-    /* === TABLA PRINCIPAL ERP PRO === */
+  /* === TABLA PRINCIPAL ERP PRO === */
+  .table-modern {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    background-color: #ffffff;
+    border-radius: 0.9rem;
+    overflow: hidden;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    font-size: 0.9rem;
+  }
+
+  .table-modern thead {
+    background: linear-gradient(90deg, #f5f7fb, #e9edf9);
+  }
+
+  .table-modern thead th {
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.65rem 0.75rem;
+    font-weight: 600;
+    color: #1f2937;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .table-modern tbody td {
+    padding: 0.60rem 0.75rem;
+    vertical-align: middle;
+    border-top: 1px solid #f0f2fa;
+  }
+
+  .table-modern tbody tr:nth-of-type(odd) {
+    background-color: #fafbff;
+  }
+
+  .table-modern tbody tr:nth-of-type(even) {
+    background-color: #ffffff;
+  }
+
+  .table-modern tbody tr:hover {
+    background-color: #eef3ff;
+    transition:
+      background-color 0.18s ease,
+      transform 0.18s ease;
+    transform: translateY(-1px);
+  }
+
+  /* Columnas específicas */
+  .col-maquina { width: 150px; font-weight: 500; }
+  .col-fecha { width: 130px; white-space: nowrap; }
+  .col-descripcion { max-width: 420px; }
+  .col-responsable { width: 140px; }
+  .col-duracion { width: 110px; text-align:center; white-space: nowrap; }
+  .col-estado { width:130px; text-align:center; white-space:nowrap; }
+  .col-acciones {
+    width: 140px; /* un poco más angosta que antes */
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle !important;
+  }
+
+  /* Botones */
+  .btn-accion {
+    min-width: 92px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 999px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.75rem;
+    transition: box-shadow 0.18s ease,
+                transform 0.18s ease,
+                background-color 0.18s ease;
+  }
+
+  .btn-accion i {
+    font-size: 0.8rem;
+    margin-right: 4px;
+    line-height: 1;
+  }
+
+  .btn-accion span {
+    margin-left: 0;
+    line-height: 1;
+  }
+
+  .btn-accion:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0.45rem rgba(0, 0, 0, 0.18);
+  }
+
+  .btn-accion:active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+
+  .btn-editar { color:#fff !important; }
+  .btn-editar i { color:#fff !important; }
+
+  .btn-group .btn-accion {
+    border-radius: 999px !important;
+    margin-left: 0.35rem !important;
+  }
+
+  .btn-group > .btn-accion:first-child {
+    margin-left: 0 !important;
+  }
+
+  .acciones-wrapper {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+
+  /* Modal moderno */
+  .modal-modern .modal-content {
+    border-radius: 1rem;
+    border: none;
+    box-shadow: 0 15px 30px rgba(15, 23, 42, 0.18);
+  }
+
+  .modal-modern .modal-header { border-bottom:none; padding-bottom:0; }
+  .modal-modern .modal-title { font-weight:600; }
+  .modal-modern .modal-body { padding-top:0.75rem; }
+
+  /* ===== AJUSTE SIMPLE PARA CELULAR ===== */
+  @media (max-width: 576px) {
+
     .table-modern {
-      border-collapse: separate;
-      border-spacing: 0;
-      width: 100%;
-      background-color: #ffffff;
-      border-radius: 0.9rem;
-      overflow: hidden;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-      font-size: 0.9rem;
-    }
-
-    .table-modern thead {
-      background: linear-gradient(90deg, #f5f7fb, #e9edf9);
-    }
-
-    .table-modern thead th {
-      border-bottom: 1px solid #dee2e6;
-      padding: 0.65rem 0.75rem;
-      font-weight: 600;
-      color: #1f2937;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
       font-size: 0.78rem;
-      white-space: nowrap;
     }
 
-    .table-modern tbody td {
-      padding: 0.60rem 0.75rem;
-      vertical-align: middle;
-      border-top: 1px solid #f0f2fa;
+    .table-modern th,
+    .table-modern td {
+      padding: 0.25rem 0.30rem;
     }
 
-    .table-modern tbody tr:nth-of-type(odd) {
-      background-color: #fafbff;
+    .col-descripcion {
+      max-width: 220px;
+      white-space: normal; /* que pueda saltar de línea */
     }
 
-    .table-modern tbody tr:nth-of-type(even) {
-      background-color: #ffffff;
-    }
-
-    .table-modern tbody tr:hover {
-      background-color: #eef3ff;
-      transition:
-        background-color 0.18s ease,
-        transform 0.18s ease;
-      transform: translateY(-1px);
-    }
-
-    /* Columnas específicas */
-    .col-maquina { width: 150px; font-weight: 500; }
-    .col-fecha { width: 130px; white-space: nowrap; }
-    .col-descripcion { max-width: 420px; }
-    .col-responsable { width: 140px; }
-    .col-duracion { width: 110px; text-align:center; white-space: nowrap; }
-    .col-estado { width:130px; text-align:center; white-space:nowrap; }
-    .col-acciones {
-      width: 180px;
-      text-align: center;
-      white-space: nowrap;
-      vertical-align: middle !important;
-    }
-
-    /* Botones */
+    /* acciones un poco más compactas */
     .btn-accion {
-      min-width: 92px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      border-radius: 999px !important;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.25rem 0.75rem;
-      transition: box-shadow 0.18s ease,
-                  transform 0.18s ease,
-                  background-color 0.18s ease;
+      min-width: auto;
+      padding: 0.18rem 0.35rem;
+      font-size: 0.65rem;
     }
 
     .btn-accion i {
-      font-size: 0.8rem;
-      margin-right: 4px;
-      line-height: 1;
+      margin-right: 0;
     }
 
+    /* en el celu solo se muestra el icono */
     .btn-accion span {
-      margin-left: 0;
-      line-height: 1;
+      display: none;
     }
-
-    .btn-accion:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 0 0.45rem rgba(0, 0, 0, 0.18);
-    }
-
-    .btn-accion:active {
-      transform: translateY(0);
-      box-shadow: none;
-    }
-
-    .btn-editar { color:#fff !important; }
-    .btn-editar i { color:#fff !important; }
-
-    .btn-group .btn-accion {
-      border-radius: 999px !important;
-      margin-left: 0.35rem !important;
-    }
-
-    .btn-group > .btn-accion:first-child {
-      margin-left: 0 !important;
-    }
-
-    .acciones-wrapper {
-      display: inline-flex;
-      gap: 0.35rem;
-      align-items: center;
-    }
-
-    /* Modal moderno */
-    .modal-modern .modal-content {
-      border-radius: 1rem;
-      border: none;
-      box-shadow: 0 15px 30px rgba(15, 23, 42, 0.18);
-    }
-
-    .modal-modern .modal-header { border-bottom:none; padding-bottom:0; }
-    .modal-modern .modal-title { font-weight:600; }
-    .modal-modern .modal-body { padding-top:0.75rem; }
-
-    /* ===== Ajustes RESPONSIVE básicos ===== */
-    @media (max-width: 576px) {
-
-      .table-modern { font-size: 0.78rem; }
-
-      .table-modern th,
-      .table-modern td {
-        padding: 0.25rem 0.35rem;
-      }
-
-      .col-descripcion {
-        max-width: 260px;
-      }
-
-      .btn-accion {
-        min-width: auto;
-        padding: 0.15rem 0.4rem;
-        font-size: 0.7rem;
-      }
-
-      .btn-accion i {
-        margin-right: 0;
-      }
-
-      .btn-accion span.texto-boton {
-        display: none;
-      }
-    }
-
-    /* ======================================================
-       🔥 FIX DEFINITIVO PARA CELULAR
-       (Botones sin cortar + tabla siempre completa)
-       ====================================================== */
-    @media (max-width: 576px) {
-
-      /* Reducir ancho de columnas */
-      .col-maquina { width: 90px !important; }
-      .col-fecha { width: 90px !important; }
-
-      .col-descripcion {
-        max-width: 160px !important;
-        white-space: normal !important;
-      }
-
-      /* Quitar ancho fijo de acciones */
-      .col-acciones {
-        width: auto !important;
-        max-width: 70px !important;
-        text-align: center;
-        white-space: nowrap !important;
-      }
-
-      /* Botones ultra compactos */
-      .btn-accion {
-        min-width: auto !important;
-        padding: 0.10rem 0.35rem !important;
-        font-size: 0.65rem !important;
-      }
-
-      .btn-accion i {
-        font-size: 0.8rem !important;
-        margin-right: 0 !important;
-      }
-
-      /* Ocultar texto en celular → solo ícono */
-      .btn-accion span {
-        display: none !important;
-      }
-    }
-
+  }
 </style>
+
 
 
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -581,3 +545,4 @@
 
 </body>
 </html>
+
