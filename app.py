@@ -16,7 +16,7 @@ from reportlab.graphics import renderPDF
 from io import BytesIO
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib.utils import ImageReader
-
+from flask import jsonify
 import matplotlib
 matplotlib.use('Agg')  # para que no necesite pantalla
 import matplotlib.pyplot as plt
@@ -1658,6 +1658,58 @@ def preventivos():
         ok=ok,
         rol=session.get("rol")
     )
+@app.route('/calendario')
+def calendario():
+    if not session.get("logged_in"):
+        return redirect(url_for("login"))
+
+    return render_template(
+        "calendario.html",
+        title="Calendario de mantenciones",
+        usuario=session.get("usuario"),
+        rol=session.get("rol")
+    )
+@app.route('/api/calendario')
+def api_calendario():
+    if not session.get("logged_in"):
+        return redirect(url_for("login"))
+
+    try:
+        df = pd.read_csv("mantenciones.csv")
+    except FileNotFoundError:
+        return jsonify([])
+
+    if 'Fecha' not in df.columns:
+        return jsonify([])
+
+    # Normalizar fecha
+    df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
+    df = df.dropna(subset=['Fecha'])
+
+    eventos = []
+
+    for _, row in df.iterrows():
+        maquina = str(row.get('Máquina', 'Sin máquina'))
+        tipo = str(row.get('Tipo', ''))
+        fecha = row['Fecha'].date().isoformat()
+
+        # Texto que se ve en el día
+        titulo = f"{maquina} ({tipo})" if tipo else maquina
+
+        # Colores por tipo (puedes cambiarlos)
+        color = '#28a745'  # verde por defecto
+        if tipo == 'Correctivo':
+            color = '#dc3545'  # rojo
+        elif tipo == 'Preventivo':
+            color = '#007bff'  # azul
+
+        eventos.append({
+            "title": titulo,
+            "start": fecha,
+            "color": color
+        })
+
+    return jsonify(eventos)
 
 
 @app.route("/preventivos/marcar/<int:indice>", methods=["POST"])
